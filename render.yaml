@@ -1,0 +1,15 @@
+# Render Blueprint — deploys NEXUS as a single Docker web service.
+# Render injects PORT at runtime; the container's CMD binds to it.
+services:
+  - type: web
+    name: nexus-algorithmic-city
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NEXUS_ENV
+        value: production
+      - key: NEXUS_LOG_LEVEL
+        value: info

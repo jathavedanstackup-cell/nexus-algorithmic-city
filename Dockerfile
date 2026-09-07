@@ -37,6 +37,8 @@ RUN mkdir -p /app/benchmarks/results && chown -R nexus:nexus /app
 USER nexus
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=5 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health').read()" || exit 1
+    CMD python -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:'+os.environ.get('PORT','8000')+'/health').read()" || exit 1
 
-CMD ["uvicorn", "nexus.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Shell form so ${PORT} expands at runtime: container hosts (Render, Railway, Fly,
+# Cloud Run) assign a port dynamically and route only to that one.
+CMD uvicorn nexus.api.app:app --host 0.0.0.0 --port ${PORT:-8000}
