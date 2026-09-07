@@ -1,26 +1,108 @@
-name: Deploy (manual placeholder)
+name: Deploy
 
-# This workflow is intentionally a stub for this run. No cloud hosting
-# account is configured, so we do not stand up a live public URL here.
-# It documents the intended deploy step for a future run where hosting
-# credentials are provisioned as repository/environment secrets.
+# Publishes a runnable container image on every push to master, and triggers a
+# hosting deploy if one is wired up. The image publish needs no configuration:
+# it authenticates with the built-in GITHUB_TOKEN.
+#
+# To turn on live deploys, add ONE repository secret:
+#   RENDER_DEPLOY_HOOK_URL - Render dashboard > service > Settings > Deploy Hook
+# Optionally set the RENDER_SERVICE_URL repository variable to have this
+# workflow verify /health on the live site afterwards.
+# Without those, the deploy steps skip cleanly and the image still ships.
 
 on:
+  push:
+    branches: [master]
   workflow_dispatch:
 
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
 jobs:
-  deploy:
-    name: Deploy (placeholder)
+  publish-image:
+    name: Build and publish container image
     runs-on: ubuntu-latest
-    environment: production
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Placeholder deploy step
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke-test the published image
         run: |
-          echo "No hosting target configured for this run."
-          echo "Wire this job to your platform of choice (e.g. Fly.io, Render, ECS, Azure Container Apps):"
-          echo "  1. Build and push the Docker image to a registry."
-          echo "  2. Deploy the image using the platform's CLI/action, reading credentials from secrets."
-          echo "  3. Verify /health on the deployed URL."
-          exit 0
+          docker run -d --name nexus-smoke -e PORT=10000 -p 9111:10000 \
+            "${IMAGE}:${GITHUB_SHA}"
+          for i in $(seq 1 40); do
+            if curl -fsS -m 5 http://127.0.0.1:9111/health > /dev/null; then
+              echo "health OK after ${i}s"
+              curl -fsS -m 10 -X POST http://127.0.0.1:9111/api/v1/simulations \
+                -H 'Content-Type: application/json' \
+                -d '{"profile":"small","seed":42}' | head -c 200
+              echo
+              docker rm -f nexus-smoke > /dev/null
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "published image never became healthy"
+          docker logs nexus-smoke
+          exit 1
+
+  deploy:
+    name: Trigger hosting deploy
+    needs: publish-image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy
+        id: trigger
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "No RENDER_DEPLOY_HOOK_URL secret set - skipping live deploy."
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK" > /dev/null
+          echo "Render deploy triggered."
+          echo "skipped=false" >> "$GITHUB_OUTPUT"
+
+      - name: Verify live health
+        if: steps.trigger.outputs.skipped == 'false' && vars.RENDER_SERVICE_URL != ''
+        env:
+          URL: ${{ vars.RENDER_SERVICE_URL }}
+        run: |
+          echo "Waiting for ${URL}/health ..."
+          for i in $(seq 1 60); do
+            if curl -fsS -m 10 "${URL}/health" > /dev/null; then
+              echo "Live health check passed."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Live health check did not pass within 10 minutes."
+          exit 1
