@@ -4,6 +4,11 @@
 
 SIMULATE · BREAK · BENCHMARK · PROVE
 
+**Live:** https://nexus-algorithmic-city.onrender.com
+
+> Hosted on Render's free plan, which sleeps after ~15 minutes idle — the
+> first request may take 30-60s to cold-start.
+
 NEXUS is not a generic DSA visualizer. It simulates a city — population,
 vehicles, roads, incidents — where classic algorithms (graph search,
 shortest path, max-flow, union-find, greedy/DP/backtracking) are the actual
@@ -82,7 +87,7 @@ nexus/
   tests/             unit / integration / property (invariants) / scenarios
   benchmarks/results/  Real, appended JSONL benchmark records
   docs/              Complexity notes, architecture
-  .github/workflows/ ci.yml (real, green), deploy.yml (documented stub)
+  .github/workflows/ ci.yml (tests/lint/types), deploy.yml (ghcr image + deploy)
   Dockerfile         multi-stage: build web -> install deps -> slim runtime
   docker-compose.yml local production-like run
 ```
@@ -205,9 +210,8 @@ reports `healthy`.
 ## Known limitations / cut for time
 
 - Stress profile capped at 50,000 nodes (documented above), not 100,000.
-- Not yet deployed to a live public URL — the repo is deploy-ready (see above),
-  but connecting a hosting account is a deliberate manual step.
-  `.github/workflows/deploy.yml` is a documented manual/placeholder stub.
+- Free-plan hosting sleeps after ~15 min idle; first request cold-starts
+  in 30-60s. Not a code issue — a plan characteristic.
 - `docs/` beyond `docs/complexity/README.md` is intentionally thin — the
   engineering depth went into correctness, tests, and the working system
   over prose documentation.
