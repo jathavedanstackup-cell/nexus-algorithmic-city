@@ -186,10 +186,27 @@ or `docker compose up --build`. The image is a 3-stage build (frontend build
 environment variables (see `.env.example`), and has a container `HEALTHCHECK`
 against `/health`. No secrets are baked into the image.
 
+## Deploying
+
+`render.yaml` is a Render Blueprint for a single Docker web service (free plan,
+health check on `/health`, auto-deploy on every commit to `master`). To go live:
+
+1. Open https://render.com/deploy?repo=https://github.com/jathavedanstackup-cell/nexus-algorithmic-city
+2. Sign in with GitHub and click **Apply**.
+
+Nothing else needs configuring — no secrets or env vars are required to run.
+After the first apply, each push to `master` redeploys automatically.
+
+The container binds to the `PORT` the platform injects, so the same image runs
+unchanged on Railway, Fly.io, or Cloud Run. Verified locally with `PORT=10000`:
+health, static frontend, and the simulation API all respond and the container
+reports `healthy`.
+
 ## Known limitations / cut for time
 
 - Stress profile capped at 50,000 nodes (documented above), not 100,000.
-- No live cloud hosting deploy in this run (out of scope per instructions);
+- Not yet deployed to a live public URL — the repo is deploy-ready (see above),
+  but connecting a hosting account is a deliberate manual step.
   `.github/workflows/deploy.yml` is a documented manual/placeholder stub.
 - `docs/` beyond `docs/complexity/README.md` is intentionally thin — the
   engineering depth went into correctness, tests, and the working system
