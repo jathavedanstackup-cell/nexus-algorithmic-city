@@ -1,0 +1,26 @@
+name: Deploy (manual placeholder)
+
+# This workflow is intentionally a stub for this run. No cloud hosting
+# account is configured, so we do not stand up a live public URL here.
+# It documents the intended deploy step for a future run where hosting
+# credentials are provisioned as repository/environment secrets.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy (placeholder)
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Placeholder deploy step
+        run: |
+          echo "No hosting target configured for this run."
+          echo "Wire this job to your platform of choice (e.g. Fly.io, Render, ECS, Azure Container Apps):"
+          echo "  1. Build and push the Docker image to a registry."
+          echo "  2. Deploy the image using the platform's CLI/action, reading credentials from secrets."
+          echo "  3. Verify /health on the deployed URL."
+          exit 0
